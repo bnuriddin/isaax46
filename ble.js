@@ -3,7 +3,21 @@
 var common = require('./common.js');
 var config = require('/home/pi/raspi-yoro/config.js');
 
+
 var fs = require("fs");
+function isExistFile(file) {
+  try {
+    fs.statSync(file);
+    console.log('localmode no communication');
+    return true;
+  } catch(err) {
+    console.log('communicate mode');
+    return false;
+  }
+}
+
+var localmode = isExistFile('/home/pi/raspi-yoro/button_on');
+
 console.log("servo.pyの接続待ち");
 var fd = fs.openSync("/home/pi/raspi-yoro/fifo", "w");
 console.log("servo.pyと接続しました");
@@ -168,8 +182,12 @@ function ti_accelerometer(conned_obj) {
             if (pos < 0) { pos = 0; }
             var val = parseInt(pos);
             if (Math.abs(sended - val) > 1) {        // ほぼ同じ値は送信しない
-              send(val);
-              setServo("200\n");         // LED 点滅
+              if (localmode) {
+                setAngle(val);
+              } else {
+                send(val);
+                setServo("200\n");         // LED 点滅
+              }
               sended = val;
             }
         });
@@ -203,12 +221,13 @@ function prepare() {
   if (common.IpAddress().length == 0) {
     setTimeout(prepare, 1000);
   } else {
-    connect();
-    keepalive();
+    if (!localmode) {
+      connect();
+      keepalive();
+    }
     setupSensor();
     common.LineMsg('ble.js開始しました');
   }
 }
 
 prepare();
-
